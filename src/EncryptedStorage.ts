@@ -104,4 +104,35 @@ export default class EncryptedStorage {
 
     return RNEncryptedStorage.clear();
   }
+
+  /**
+  * Retrieves all keys from secure storage
+  */
+  static getAllKeys(cb: StorageValueCallback): void;
+  static getAllKeys(
+    cb?: StorageValueCallback
+  ): void | Promise<string | null> {
+    if (cb) {
+      RNEncryptedStorage.getAllKeys().then(cb).catch(cb);
+      return;
+    }
+
+    return RNEncryptedStorage.getAllKeys();
+  }
+
+  /**
+  * Saves complete secure storage data to native secure storage enclave
+  */
+  static save(secureStorageData: Object, cb: StorageValueCallback): void;
+  static save(
+    secureStorageData: Object,
+    cb?: StorageErrorCallback
+  ): void | Promise<void> {
+    if (cb) {
+      RNEncryptedStorage.save(secureStorageData).then(cb).catch(cb);
+      return;
+    }
+
+    return RNEncryptedStorage.save(secureStorageData);
+  }
 }
