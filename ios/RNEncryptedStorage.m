@@ -86,6 +86,96 @@ RCT_EXPORT_METHOD(getItem:(NSString *)key resolver:(RCTPromiseResolveBlock)resol
     }
 }
 
+RCT_EXPORT_METHOD(getAllKeys:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableArray* finalResult = [[NSMutableArray alloc] init];
+    NSMutableDictionary* getQuery = [NSMutableDictionary dictionaryWithDictionary:@{
+            (__bridge NSString *)kSecClass: (__bridge id)(kSecClassGenericPassword),
+            (__bridge NSString *)kSecReturnAttributes: (__bridge id)kCFBooleanTrue,
+            (__bridge NSString *)kSecMatchLimit: (__bridge NSString *)kSecMatchLimitAll,
+            (__bridge NSString *)kSecReturnData: (__bridge id)kCFBooleanTrue
+                                                                                }];
+    
+    CFTypeRef dataRef = NULL;
+    OSStatus getStatus = SecItemCopyMatching((__bridge CFDictionaryRef)getQuery, &dataRef);
+    
+    if (getStatus == errSecSuccess) {
+    
+        if(dataRef != NULL){
+            for (NSDictionary* item in (__bridge id)dataRef) {
+                      [finalResult addObject:(NSString*)[item objectForKey:(__bridge id)(kSecAttrAccount)]];
+                  }
+        }
+        resolve(finalResult);
+    }
+
+    else if (getStatus == errSecItemNotFound) {
+        resolve(nil);
+    }
+    
+    else {
+        NSError* error = [NSError errorWithDomain: [[NSBundle mainBundle] bundleIdentifier] code:getStatus userInfo:nil];
+        rejectPromise(@"An error occured while retrieving value", error, reject);
+    }
+}
+
+RCT_EXPORT_METHOD(save:(NSString *)secureStorageData resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSError *err;
+    NSDictionary *arr =
+     [NSJSONSerialization JSONObjectWithData:[secureStorageData dataUsingEncoding:NSUTF8StringEncoding]
+                                     options:NSJSONReadingMutableContainers
+                                       error:&err];
+    
+    NSArray *keys = [arr allKeys];
+    NSArray *values = [arr allValues];
+    int numberOfInsertedKeys = 0;
+   //Iterate trough keypairs
+    
+    for(int i=0;i<[keys count];i++){
+        //NSLog(@"%@", keys[i]);
+        //NSLog(@"%@", values[i]);
+        
+        NSData* dataFromValue = [values[i] dataUsingEncoding:NSUTF8StringEncoding];
+        
+        if (dataFromValue == nil) {
+            NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:0 userInfo: nil];
+            rejectPromise(@"An error occured while parsing value", error, reject);
+            return;
+        }
+        
+        // Prepares the insert query structure
+        NSDictionary* storeQuery = @{
+            (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrAccount : keys[i],
+            (__bridge id)kSecValueData : dataFromValue
+        };
+        
+        // Deletes the existing item prior to inserting the new one
+        SecItemDelete((__bridge CFDictionaryRef)storeQuery);
+        
+        OSStatus insertStatus = SecItemAdd((__bridge CFDictionaryRef)storeQuery, nil);
+        
+        if (insertStatus == noErr) {
+         //All good continue on
+            numberOfInsertedKeys++;
+        }
+        else{
+            NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:insertStatus userInfo: nil];
+            rejectPromise(@"An error occured while saving value", error, reject);
+            break;
+        }
+    }
+    
+    //Last check
+    if (numberOfInsertedKeys == [keys count]) {
+        resolve(@"true");
+    }
+    else {
+        rejectPromise(@"An error occured while save()", nil, reject);
+    }
+}
+
 RCT_EXPORT_METHOD(removeItem:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     NSDictionary* removeQuery = @{

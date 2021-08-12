@@ -9,6 +9,12 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.WritableNativeArray;
+
+import org.json.JSONObject;
+
+import java.util.Iterator;
+import java.util.Map;
 
 public class RNEncryptedStorageModule extends ReactContextBaseJavaModule {
 
@@ -76,6 +82,48 @@ public class RNEncryptedStorageModule extends ReactContextBaseJavaModule {
 
         promise.resolve(value);
     }
+
+    @ReactMethod
+    public void getAllKeys(Promise promise) {
+        if (this.sharedPreferences == null) {
+            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+            return;
+        }
+
+        Map<String, ?> allData = this.sharedPreferences.getAll();
+        WritableNativeArray keyArray = new WritableNativeArray();
+        for (Map.Entry<String, ?> entry : allData.entrySet()) {
+            //Log.d("map values", entry.getKey() + ": " + entry.getValue().toString());
+            keyArray.pushString(entry.getKey());
+        }
+
+        promise.resolve(keyArray);
+    }
+
+    @ReactMethod
+    public void save(String latestSecureStorageData, Promise promise) {
+        if (this.sharedPreferences == null) {
+            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+            return;
+        }
+
+        SharedPreferences.Editor editor = this.sharedPreferences.edit();
+        try{
+            JSONObject secureStorageObject = new JSONObject(latestSecureStorageData);
+            Iterator<String> keys = secureStorageObject.keys();
+            while(keys.hasNext()) {
+                String key = keys.next();
+                editor.putString(key, secureStorageObject.getString(key));
+                //Commit changes to secure storage
+                editor.commit();
+            }
+        }
+        catch(Exception e){
+            promise.reject(new Exception("Error while parsing new secure storage data!"));
+        }
+        promise.resolve(true);
+    }
+
 
     @ReactMethod
     public void removeItem(String key, Promise promise) {
