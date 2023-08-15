@@ -30,6 +30,7 @@ RCT_EXPORT_MODULE();
 RCT_EXPORT_METHOD(setItem:(NSString *)key withValue:(NSString *)value resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     NSData* dataFromValue = [value dataUsingEncoding:NSUTF8StringEncoding];
+    CFStringRef accessible = accessibleVal([[NSDictionary alloc] initWithObjectsAndKeys:@"AccessibleWhenUnlockedThisDeviceOnly", @"accessible", nil]);
     
     if (dataFromValue == nil) {
         NSError* error = [NSError errorWithDomain:[[NSBundle mainBundle] bundleIdentifier] code:0 userInfo: nil];
@@ -41,7 +42,8 @@ RCT_EXPORT_METHOD(setItem:(NSString *)key withValue:(NSString *)value resolver:(
     NSDictionary* storeQuery = @{
         (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
         (__bridge id)kSecAttrAccount : key,
-        (__bridge id)kSecValueData : dataFromValue
+        (__bridge id)kSecValueData : dataFromValue,
+        (__bridge NSString *)kSecAttrAccessible :(__bridge id)accessible
     };
     
     // Deletes the existing item prior to inserting the new one
@@ -61,11 +63,14 @@ RCT_EXPORT_METHOD(setItem:(NSString *)key withValue:(NSString *)value resolver:(
 
 RCT_EXPORT_METHOD(getItem:(NSString *)key resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
+    CFStringRef accessible = accessibleVal([[NSDictionary alloc] initWithObjectsAndKeys:@"AccessibleWhenUnlockedThisDeviceOnly", @"accessible", nil]);
+
     NSDictionary* getQuery = @{
         (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
         (__bridge id)kSecAttrAccount : key,
         (__bridge id)kSecReturnData : (__bridge id)kCFBooleanTrue,
-        (__bridge id)kSecMatchLimit : (__bridge id)kSecMatchLimitOne
+        (__bridge id)kSecMatchLimit : (__bridge id)kSecMatchLimitOne,
+        (__bridge NSString *)kSecAttrAccessible :(__bridge id)accessible
     };
     
     CFTypeRef dataRef = NULL;
@@ -88,13 +93,16 @@ RCT_EXPORT_METHOD(getItem:(NSString *)key resolver:(RCTPromiseResolveBlock)resol
 
 RCT_EXPORT_METHOD(getAllKeys:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
+    CFStringRef accessible = accessibleVal([[NSDictionary alloc] initWithObjectsAndKeys:@"AccessibleWhenUnlockedThisDeviceOnly", @"accessible", nil]);
+
     NSMutableArray* finalResult = [[NSMutableArray alloc] init];
     NSMutableDictionary* getQuery = [NSMutableDictionary dictionaryWithDictionary:@{
             (__bridge NSString *)kSecClass: (__bridge id)(kSecClassGenericPassword),
             (__bridge NSString *)kSecReturnAttributes: (__bridge id)kCFBooleanTrue,
             (__bridge NSString *)kSecMatchLimit: (__bridge NSString *)kSecMatchLimitAll,
-            (__bridge NSString *)kSecReturnData: (__bridge id)kCFBooleanTrue
-                                                                                }];
+            (__bridge NSString *)kSecReturnData: (__bridge id)kCFBooleanTrue,
+            (__bridge NSString *)kSecAttrAccessible :(__bridge id)accessible
+                                    }];
     
     CFTypeRef dataRef = NULL;
     OSStatus getStatus = SecItemCopyMatching((__bridge CFDictionaryRef)getQuery, &dataRef);
@@ -121,10 +129,13 @@ RCT_EXPORT_METHOD(getAllKeys:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromis
 
 RCT_EXPORT_METHOD(getAllKeysAndValues:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
+    CFStringRef accessible = accessibleVal([[NSDictionary alloc] initWithObjectsAndKeys:@"AccessibleWhenUnlockedThisDeviceOnly", @"accessible", nil]);
+
     NSMutableDictionary* query = [NSMutableDictionary dictionaryWithDictionary:@{
          (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
          (__bridge id)kSecReturnAttributes: (__bridge id)kCFBooleanTrue,
-         (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitAll
+         (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitAll,
+         (__bridge NSString *)kSecAttrAccessible :(__bridge id)accessible
      }];
      
      CFTypeRef result = NULL;
@@ -154,6 +165,7 @@ RCT_EXPORT_METHOD(getAllKeysAndValues:(RCTPromiseResolveBlock)resolve rejecter:(
 
 RCT_EXPORT_METHOD(save:(NSString *)secureStorageData resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
+    CFStringRef accessible = accessibleVal([[NSDictionary alloc] initWithObjectsAndKeys:@"AccessibleWhenUnlockedThisDeviceOnly", @"accessible", nil]);
     NSError *err;
     NSDictionary *arr =
      [NSJSONSerialization JSONObjectWithData:[secureStorageData dataUsingEncoding:NSUTF8StringEncoding]
@@ -181,7 +193,8 @@ RCT_EXPORT_METHOD(save:(NSString *)secureStorageData resolver:(RCTPromiseResolve
         NSDictionary* storeQuery = @{
             (__bridge id)kSecClass : (__bridge id)kSecClassGenericPassword,
             (__bridge id)kSecAttrAccount : keys[i],
-            (__bridge id)kSecValueData : dataFromValue
+            (__bridge id)kSecValueData : dataFromValue,
+            (__bridge NSString *)kSecAttrAccessible :(__bridge id)accessible
         };
         
         // Deletes the existing item prior to inserting the new one
@@ -246,5 +259,25 @@ RCT_EXPORT_METHOD(clear:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseReje
     }
     
     resolve(nil);
+}
+
+CFStringRef accessibleVal(NSDictionary *options)
+{
+    if (options && options[@"accessible"] != nil) {
+        NSDictionary *keyMap = @{
+                                 @"AccessibleWhenUnlocked": (__bridge NSString *)kSecAttrAccessibleWhenUnlocked,
+                                 @"AccessibleAfterFirstUnlock": (__bridge NSString *)kSecAttrAccessibleAfterFirstUnlock,
+                                 @"AccessibleAlways": (__bridge NSString *)kSecAttrAccessibleAlways,
+                                 @"AccessibleWhenPasscodeSetThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+                                 @"AccessibleWhenUnlockedThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+                                 @"AccessibleAfterFirstUnlockThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+                                 @"AccessibleAlwaysThisDeviceOnly": (__bridge NSString *)kSecAttrAccessibleAlwaysThisDeviceOnly
+                                 };
+        NSString *result = keyMap[options[@"accessible"]];
+        if (result) {
+            return (__bridge CFStringRef)result;
+        }
+    }
+    return kSecAttrAccessibleAfterFirstUnlock;
 }
 @end
