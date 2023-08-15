@@ -51,6 +51,11 @@ export default class EncryptedStorage {
     static getAllKeys(): Promise<Array | null>;;
     static getAllKeys(cb: StorageValueCallback): void;
     /**
+    * Retrieves key/value pairs from secure storage
+    */
+    static getAllKeysAndValues(): Promise<Array | null>;;
+    static getAllKeysAndValues(cb: StorageValueCallback): void;
+    /**
     * Saves complete secure storage data to native secure storage enclave
     */
     static save(secureStorageData: Object): Promise<void>;

@@ -101,6 +101,28 @@ public class RNEncryptedStorageModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void getAllKeysAndValues(Promise promise) {
+        if (this.sharedPreferences == null) {
+            promise.reject(new NullPointerException("Could not initialize SharedPreferences"));
+            return;
+        }
+
+        Map<String, ?> allData = this.sharedPreferences.getAll();
+        List<Map<String, String>> keyValuePairs = new ArrayList<>();
+        for (Map.Entry<String, ?> entry : allData.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue().toString();
+
+            Map<String, String> keyValuePair = new HashMap<>();
+            keyValuePair.put("key", key);
+            keyValuePair.put("value", value);
+            keyValuePairs.add(keyValuePair);
+        }
+
+        promise.resolve(keyValuePairs);
+    }
+
+    @ReactMethod
     public void save(String latestSecureStorageData, Promise promise) {
         if (this.sharedPreferences == null) {
             promise.reject(new NullPointerException("Could not initialize SharedPreferences"));

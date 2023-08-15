@@ -121,6 +121,21 @@ export default class EncryptedStorage {
   }
 
   /**
+* Retrieves key/value pairs from secure storage
+*/
+  static getAllKeysAndValues(cb: StorageValueCallback): void;
+  static getAllKeysAndValues(
+    cb?: StorageValueCallback
+  ): void | Promise<string | null> {
+    if (cb) {
+      RNEncryptedStorage.getAllKeysAndValues().then(cb).catch(cb);
+      return;
+    }
+
+    return RNEncryptedStorage.getAllKeysAndValues();
+  }
+
+  /**
   * Saves complete secure storage data to native secure storage enclave
   */
   static save(secureStorageData: Object, cb: StorageValueCallback): void;

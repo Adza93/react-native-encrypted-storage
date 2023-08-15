@@ -119,6 +119,39 @@ RCT_EXPORT_METHOD(getAllKeys:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromis
     }
 }
 
+RCT_EXPORT_METHOD(getAllKeysAndValues:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSMutableDictionary* query = [NSMutableDictionary dictionaryWithDictionary:@{
+         (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+         (__bridge id)kSecReturnAttributes: (__bridge id)kCFBooleanTrue,
+         (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitAll
+     }];
+     
+     CFTypeRef result = NULL;
+     OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
+     
+     if (status != errSecSuccess) {
+         NSError *error = [NSError errorWithDomain:NSOSStatusErrorDomain code:status userInfo:nil];
+         reject(@"KEYCHAIN_ERROR", @"Failed to retrieve items from the Keychain.", error);
+         return;
+     }
+     
+     NSArray *items = (__bridge_transfer NSArray *)result;
+     NSMutableDictionary *keyValuePairs = [NSMutableDictionary dictionary];
+     
+     for (NSDictionary *item in items) {
+         NSString *key = item[(__bridge id)kSecAttrAccount];
+         NSData *valueData = item[(__bridge id)kSecValueData];
+         NSString *value = [[NSString alloc] initWithData:valueData encoding:NSUTF8StringEncoding];
+         
+         if (key && value) {
+             keyValuePairs[key] = value;
+         }
+     }
+     
+     resolve(keyValuePairs);
+}
+
 RCT_EXPORT_METHOD(save:(NSString *)secureStorageData resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
     NSError *err;
